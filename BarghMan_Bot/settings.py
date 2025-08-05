@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'accounts',
     'billing',
+    'telegram_bot',
 ]
 
 MIDDLEWARE = [
@@ -128,3 +129,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # .env key definitions
 BLACKOUT_API_TOKEN = config("BLACKOUT_API_TOKEN")
+TELEGRAM_BOT_TOKEN = config("TELEGRAM_BOT_TOKEN")
