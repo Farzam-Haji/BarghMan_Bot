@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'accounts',
     'billing',
     'telegram_bot',
+    'blackout_checker',
 ]
 
 MIDDLEWARE = [
@@ -130,3 +131,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # .env key definitions
 BLACKOUT_API_TOKEN = config("BLACKOUT_API_TOKEN")
 TELEGRAM_BOT_TOKEN = config("TELEGRAM_BOT_TOKEN")
+
+
+# redis
+REDIS_HOST = "127.0.0.1"
+REDIS_PORT = "6379"
+REDIS_DB = 0
