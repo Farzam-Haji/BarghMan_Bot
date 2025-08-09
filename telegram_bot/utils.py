@@ -1,5 +1,5 @@
 from django.conf import settings
-from billing.utils import get_user_reports
+from blackout_checker.redis_client import get_redis_report
 import requests
 
 def send_telegram_message(chat_id, text):
@@ -17,8 +17,11 @@ def send_telegram_message(chat_id, text):
 
 
 def send_telegram_user_reports(user):
-	reports = get_user_reports(user)
+	user_bills = user.bills.all()
 
-	for bill, report in reports.items():
-		text = f"report for {bill}: {report}"
-		send_telegram_message(user.chat_id, text)
+	if not user_bills:
+		return ("This user has no bill")
+
+	for bill in user_bills:
+		for report in get_redis_report(bill.bill_id):
+			send_telegram_message(user.chat_id, report)
