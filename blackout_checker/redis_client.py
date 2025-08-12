@@ -12,19 +12,30 @@ def get_redis_connection():
 			decode_responses=True
 		)
 
-def store_redis_report(bill_id):
+def store_redis_report(bill_id: str) -> bool:
 	r = get_redis_connection()
 	key = bill_id
-	value = fetch_blackout_report(bill_id)
-	r.setex(key, 93600, json.dumps(value, ensure_ascii=False))
+	try:
+		value = fetch_blackout_report(bill_id)
+	except Exception as e:
+		print(f"Error during fetching data from api: {e}")
+		return False
 
-def get_redis_report(bill_id):
+	try:
+		r.setex(key, 93600, json.dumps(value, ensure_ascii=False))
+		return True
+	except Exception as e:
+		print("Error with redis: {e}")
+		return False
+
+def get_redis_report(bill_id: str) -> str:
 	r = get_redis_connection()
 	json_report = r.get(bill_id)
 	if json_report is None:
-		return None
+		return ""
 	else:
 		return report_parser(json.loads(json_report))
+
 
 def delete_orphan_redis_reports():
 	orphan_bills = Bill.objects.filter(users__isnull=True)
@@ -36,9 +47,6 @@ def delete_orphan_redis_reports():
 def update_all_bill_reports():
 	bills = Bill.objects.exclude(users__isnull=True)
 	for bill in bills:
-		try:
-			store_redis_report(bill.bill_id)
-		except Exception as e:
-			print(f"Error for bill {bill.bill_id}: {e}")
+		store_redis_report(bill.bill_id)
 
 	delete_orphan_redis_reports()

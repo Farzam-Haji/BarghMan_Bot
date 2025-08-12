@@ -4,8 +4,7 @@ from django.db import models
 class TelegramUser(models.Model):
 	chat_id = models.BigIntegerField(unique=True)
 	username = models.CharField(max_length=100, blank=True, null=True)
-	first_name = models.CharField(max_length=100, blank=True, null=True)
-	last_name = models.CharField(max_length=100, blank=True, null=True)
+	name = models.CharField(max_length=100, blank=True, null=True)
 	bills = models.ManyToManyField("billing.Bill", related_name="users", blank=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 

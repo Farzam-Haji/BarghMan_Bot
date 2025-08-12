@@ -35,7 +35,7 @@ def report_parser(json):
 		text = f"{location}\ndate: {date} | from: {start_time} | to: {end_time}"
 		parsed_reports.append(text)
 
-	return parsed_reports
+	return "\n\n".join(parsed_reports)
 
 
 # def get_user_reports(user):
