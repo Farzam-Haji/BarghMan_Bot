@@ -71,26 +71,31 @@ def update_user_info(user, update: Update):
 #Command_Handlers
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-	await update.message.reply_text("Welcome to BarghMan Bot!!!\nYou can find help with /help")
+	await update.message.reply_text("به ربات برق‌من خوش آمدید!\nبرای آشنایی با طریقه‌ی عملکرد ربات از /help استفاده کنید")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-	await update.message.reply_text("/add: Add a new bill to your account\n/delete: Delete one of your existing bills\n/check: get the reports for your bills")
+	return await update.message.reply_text("می‌توانید توسط یکی از دستورات زیر کار مد نظر خود را از ربات بخواهید:\n\n"
+		+"/add  افزودن قبض جدید\n"
+		+"/delete  حذف یکی از قبض‌های از پیش افزوده شده\n"
+		+"/check  دریافت گزارش خاموشی برای قبوض افزوده شده")
 
 
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	if len(context.args) != 1:
-		await update.message.reply_text("hint: /add <your 13 digit bill id>\nExample: /add 1234567890013")
+		await update.message.reply_text("طریقه‌ی افزودن قبض:\n/add شماره‌ی ۱۳ رقمی قبض\n"
+			+"❗لطفا شماره را به انگلیسی تایپ کنید.\n\n"
+			+"مثال:\n/add 1234567890013")
 		return
 	
 	bill_id = context.args[0]
 	chat_id = update.effective_chat.id
 
 	if not bill_id.isdigit() or len(bill_id) != 13:
-		return await update.message.reply_text("Wrong bill number\nValid bill is 13 digit number\nExample: /add 1234567890013")
+		return await update.message.reply_text("قبض اشتباه!\nقبض باید ۱۳ رقم انگلیسی باشد.\nمثال:\n/add 1234567890013")
 		
 	if not await sync_to_async(store_redis_report)(bill_id):
-		return await update.message.reply_text("We couldn't receive data for this bill")
+		return await update.message.reply_text("موفق به دریافت اطلاعات برای این قبض نشدم. لطفا دوباره تلاش کنید.")
 		
 	user, _ = await get_create_user(chat_id)
 	await update_user_info(user, update)
@@ -99,7 +104,7 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	if not await bill_exist_for_user(user, bill):
 		await add_bill_to_user(user, bill)
 
-	return await update.message.reply_text(f"bill {bill_id} was successfully added for you")
+	return await update.message.reply_text(f"قبض {bill_id} با موفقیت برای شما ثبت شد.\nمیتوانید با /check گزارش آن را دیافت کنید")
 
 
 async def check_command(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
@@ -107,14 +112,14 @@ async def check_command(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 	bills = await all_bills_for_user(user)
 
 	if not bills:
-		return await update.message.reply_text("You have not registered any bills")
+		return await update.message.reply_text("شما قبضی ندارید.\nابتدا با /add قبض خود را ثبت کنید")
 		
 	bottons = [[InlineKeyboardButton(bill.bill_id, callback_data=f"check:{bill.bill_id}")]for bill in bills]
-	bottons.append([InlineKeyboardButton("All", callback_data="check:all")])
-	bottons.append([InlineKeyboardButton("Return", callback_data="check:return")])
+	bottons.append([InlineKeyboardButton("همه", callback_data="check:همه")])
+	bottons.append([InlineKeyboardButton("بازگشت", callback_data="check:return")])
 	keyboard = InlineKeyboardMarkup(bottons)
 
-	return await update.message.reply_text("Select which you bill's report you want", reply_markup=keyboard)
+	return await update.message.reply_text("گزارش کدام قبض را می‌خواهید؟", reply_markup=keyboard)
 
 
 async def check_callback(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
@@ -123,10 +128,10 @@ async def check_callback(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 	answer = query.data.split(":")[1]
 
 	if answer == "return":
-		return await query.edit_message_text(text="You canceled check process")
+		return await query.edit_message_text(text="شما پروسه‌ی دریافت خاموشی را متوقف کردید")
 
-	await query.edit_message_text(text=f"You selected: {answer}")
-	if answer == "all":
+	await query.edit_message_text(text=f"انتخاب شما: {answer}")
+	if answer == "همه":
 		user = await get_user(update.effective_chat.id)
 		result = await sync_to_async(all_reports_list)(user)
 		for bill_report in result:
@@ -143,7 +148,7 @@ async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	bills = await all_bills_for_user(user)
 
 	if not bills:
-		return await update.message.reply_text("You don't have any bills yet")
+		return await update.message.reply_text("شما قبضی ندارید")
 		
 
 	buttons=[]
@@ -152,7 +157,7 @@ async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	buttons.append([InlineKeyboardButton("Return", callback_data="delete:return")])
 	keyboard = InlineKeyboardMarkup(buttons)
 
-	return await update.message.reply_text("Select which bill you want to delete", reply_markup=keyboard)
+	return await update.message.reply_text("کدام قبض را میخواهید حذف کنید؟", reply_markup=keyboard)
 
 
 async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -161,13 +166,13 @@ async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	answer = query.data.split(":")[1]
 
 	if answer == "return":
-		return await query.edit_message_text(text="You canceled the deletion process")
+		return await query.edit_message_text(text="شما پروسه‌ی حذف قبض را متوقف کردید")
 		
 	user = await get_user(update.effective_chat.id)
 	if await delete_bill_for_user(user, answer):
-		return await query.edit_message_text(text=f"Bill <{answer}> was successfully deleted")
+		return await query.edit_message_text(text=f"قبض {answer} با موفقیت حذف شد")
 	else:
-		return await query.edit_message_text(text="Unsuccessful. try again")
+		return await query.edit_message_text(text="ناموفق. لطفا دوباره تلاش کنید")
 
 
 
