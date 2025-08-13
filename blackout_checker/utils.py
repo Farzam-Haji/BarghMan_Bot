@@ -32,7 +32,7 @@ def report_parser(json):
 		end_time = report.get('outage_stop_time')
 		location = report.get('address')
 
-		text = f"{location}\ndate: {date} | from: {start_time} | to: {end_time}"
+		text = f"🌆  منطقه: {location}\n📅  تاریخ: {date}\n⏰  از: {start_time}  |  تا: {end_time}"
 		parsed_reports.append(text)
 
 	return "\n\n".join(parsed_reports)
