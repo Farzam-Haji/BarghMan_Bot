@@ -39,11 +39,11 @@ def all_reports_list(user: TelegramUser):
 	result = []
 	
 	if not user_bills:
-		result.append("You have no bills")
+		result.append("شما قبضی ثبت نکرده‌اید")
 		return result
 
 	for bill in user_bills:
-		bill_report = f"report for {bill.bill_id}:\n\n" + get_redis_report(bill.bill_id)
+		bill_report = f"\nگزارش خاموشی برای {bill.bill_id}:\n\n" + get_redis_report(bill.bill_id)
 		result.append(bill_report)
 
 	return result
