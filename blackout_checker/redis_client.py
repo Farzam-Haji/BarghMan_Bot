@@ -1,7 +1,7 @@
 import redis
 import json
 from django.conf import settings
-from blackout_checker.utils import fetch_blackout_report, report_parser
+from blackout_checker.utils import fetch_blackout_report, report_parser, today_tomorrow_report_parser
 from billing.models import Bill
 
 def get_redis_connection():
@@ -28,6 +28,7 @@ def store_redis_report(bill_id: str) -> bool:
 		print("Error with redis: {e}")
 		return False
 
+
 def get_redis_report(bill_id: str) -> str:
 	r = get_redis_connection()
 	json_report = r.get(bill_id)
@@ -35,6 +36,15 @@ def get_redis_report(bill_id: str) -> str:
 		return ""
 	else:
 		return report_parser(json.loads(json_report))
+
+
+def get_redis_near_report(bill_id: str) -> str:
+	r = get_redis_connection()
+	json_report = r.get(bill_id)
+	if json_report is None:
+		return ""
+	else:
+		return today_tomorrow_report_parser(json.loads(json_report))
 
 
 def delete_orphan_redis_reports():
