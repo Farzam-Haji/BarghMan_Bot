@@ -14,7 +14,7 @@ from django.conf import settings
 from accounts.models import TelegramUser
 from billing.models import Bill
 from blackout_checker.redis_client import store_redis_report, get_redis_report
-from telegram_bot.utils import all_reports_list
+from telegram_bot.utils import all_reports_list_bot
 import asyncio
 from asgiref.sync import sync_to_async
 
@@ -133,7 +133,7 @@ async def check_callback(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 	await query.edit_message_text(text=f"انتخاب شما: {answer}")
 	if answer == "همه":
 		user = await get_user(update.effective_chat.id)
-		result = await sync_to_async(all_reports_list)(user)
+		result = await sync_to_async(all_reports_list_bot)(user)
 		for bill_report in result:
 			await query.message.reply_text(bill_report)
 			await asyncio.sleep(0.1)

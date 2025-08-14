@@ -1,5 +1,5 @@
 from django.conf import settings
-from blackout_checker.redis_client import get_redis_report
+from blackout_checker.redis_client import get_redis_report, get_redis_near_report
 import requests
 from accounts.models import TelegramUser
 
@@ -21,19 +21,40 @@ def send_telegram_message(chat_id, text):
 	response = requests.post(url, proxies=proxies, json=payload)
 	return response.ok
 
-# send reports to all the users
-def send_telegram_user_reports():
+
+# Manual Telegram Message Through Bot
+def send_all_reports_direct() -> None:
 	all_users = TelegramUser.objects.all()
 	for user in all_users:
 		user_bills = user.bills.all()
 		if not user_bills:
 			continue
+
+		telegram_message = []
 		for bill in user_bills:
-			bill_report = f"report for {bill.bill_id}:\n\n" + get_redis_report(bill.bill_id)
-			send_telegram_message(user.chat_id, get_redis_report(bill.bill_id))
+			bill_report = f"گزارش خاموشی برای {bill.bill_id}:\n\n" + get_redis_report(bill.bill_id)
+			telegram_message.append(bill_report)
+			
+		send_telegram_message(user.chat_id, "\n\n".join(telegram_message))
+
+def send_near_reports_direct() -> None:
+	all_users = TelegramUser.objects.all()
+	for user in all_users:
+		user_bills = user.bills.all()
+		if not user_bills:
+			continue
+		
+		telegram_message = []
+		for bill in user_bills:
+			bill_report = f"گزارش خاموشی برای {bill.bill_id}:\n\n" + get_redis_near_report(bill.bill_id)
+			telegram_message.append(bill_report)
+
+		send_telegram_message(user.chat_id, "\n\n".join(telegram_message))
 
 
-def all_reports_list(user: TelegramUser):
+
+# Telegram Bot
+def all_reports_list_bot(user: TelegramUser) -> list:
 	user_bills = user.bills.all()
 
 	result = []
@@ -47,3 +68,5 @@ def all_reports_list(user: TelegramUser):
 		result.append(bill_report)
 
 	return result
+
+
