@@ -87,7 +87,7 @@ def today_tomorrow_report_parser(json) -> tuple:
 
 	tomorrow_str = ""
 	if len(tomorrow_report) > 0:
-		today_str = "\n\n".join(tomorrow_report)
+		tomorrow_str = "\n\n".join(tomorrow_report)
 
 	return (today_str, tomorrow_str)
 

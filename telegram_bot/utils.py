@@ -24,29 +24,20 @@ def send_telegram_message(chat_id, text):
 
 # Manual Telegram Message Through Bot
 def send_all_reports_direct() -> None:
-	all_users = TelegramUser.objects.all()
-	for user in all_users:
-		user_bills = user.bills.all()
-		if not user_bills:
-			continue
-
+	for user in TelegramUser.objects.filter(auto_update=True).prefetch_related("bills"):
 		telegram_message = []
-		for bill in user_bills:
+		for bill in user.bills.all():
 			bill_report = f"گزارش خاموشی برای {bill.bill_id}:\n\n" + get_redis_report(bill.bill_id)
 			telegram_message.append(bill_report)
 			
 		send_telegram_message(user.chat_id, "\n\n".join(telegram_message))
 
 def send_near_reports_direct() -> None:
-	all_users = TelegramUser.objects.all()
-	for user in all_users:
-		user_bills = user.bills.all()
-		if not user_bills:
-			continue
-		
+	for user in TelegramUser.objects.filter(auto_update=True).prefetch_related("bills"):
 		today_message = ""
 		tomorrow_message = ""
-		for bill in user_bills:
+
+		for bill in user.bills.all():
 			(today_report, tomorrow_report) = get_redis_near_report(bill.bill_id)
 			today_message += today_report
 			tomorrow_message += tomorrow_report
