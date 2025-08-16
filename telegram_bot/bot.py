@@ -51,7 +51,7 @@ def all_bills_for_user(user: TelegramUser):
 	return list(user.bills.all())
 
 @sync_to_async
-def delete_bill_for_user(user:TelegramUser, bill_id: str) -> bool:
+def delete_bill_for_user(user: TelegramUser, bill_id: str) -> bool:
 	try:
 		user.bills.filter(bill_id=bill_id).delete()
 		return True
@@ -59,10 +59,17 @@ def delete_bill_for_user(user:TelegramUser, bill_id: str) -> bool:
 		return False
 
 @sync_to_async
+def update_user_auto_status(user: TelegramUser, status: bool):
+	user.auto_update = status
+	user.save()
+	return
+
+@sync_to_async
 def update_user_info(user, update: Update):
 	user.username = update.effective_chat.username
 	user.name = update.effective_chat.full_name
 	user.save()
+	return
 
 
 
@@ -76,7 +83,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	return await update.message.reply_text("می‌توانید توسط یکی از دستورات زیر کار مد نظر خود را از ربات بخواهید:\n\n"
 		+"/add  افزودن قبض جدید\n"
 		+"/delete  حذف یکی از قبض‌های از پیش افزوده شده\n"
-		+"/check  دریافت گزارش خاموشی برای قبوض افزوده شده")
+		+"/check  دریافت گزارش خاموشی برای قبوض افزوده شده\n"
+		+"/auto  دریافت اخبار خودکار\n\n"
+		+"اخبار خودکار: اخبار خاموشی مربوط به امروز و فردا را به صورت روزانه و خودکار دریافت میکنید.")
 
 
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -182,6 +191,40 @@ async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		return await query.edit_message_text(text="ناموفق. لطفا دوباره تلاش کنید")
 
 
+async def auto_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	user = await get_user(update.effective_chat.id)
+	current = ""
+	if user.auto_update:
+		current = "فعال"
+	else:
+		current = "غیرفعال"
+
+	buttons = [
+		[
+			InlineKeyboardButton("فعال", callback_data="auto:active"),
+			InlineKeyboardButton("غیرفعال", callback_data="auto:inactive")
+		]
+	]
+
+	keyboard = InlineKeyboardMarkup(buttons)
+	return await update.message.reply_text(f"وضعیت فعلی دریافت خودکار اخبار: {current}", reply_markup=keyboard)
+
+
+async def auto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	query = update.callback_query
+	await query.answer()
+	answer = query.data.split(":")[1]
+	user = await get_user(update.effective_chat.id)
+
+	if answer == "active":
+		await update_user_auto_status(user, True)
+		return	await query.edit_message_text(text="اخبار خودکار فعال شد.")
+
+	if answer == "inactive":
+		await update_user_auto_status(user, False)
+		return	await query.edit_message_text(text="اخبار خودکار غیرفعال شد.")
+
+
 
 
 
@@ -196,6 +239,9 @@ def main():
 	app.add_handler(CallbackQueryHandler(check_callback, pattern="^check"))
 	app.add_handler(CommandHandler("delete", delete_command))
 	app.add_handler(CallbackQueryHandler(delete_callback, pattern="^delete"))
+	app.add_handler(CommandHandler('auto', auto_command))
+	app.add_handler(CallbackQueryHandler(auto_callback, pattern="^auto"))
+
 	print("bot is running")
 	app.run_polling()
 
