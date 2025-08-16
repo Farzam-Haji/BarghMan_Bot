@@ -6,10 +6,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "BarghMan_Bot.settings")
 django.setup()
 #--------------------------------------------------------------------------------#
-from django.db.models import query
-from redis import commands
-from telegram import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes
+from telegram import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 from django.conf import settings
 from accounts.models import TelegramUser
 from billing.models import Bill
@@ -82,21 +80,30 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-	if len(context.args) != 1:
-		await update.message.reply_text("طریقه‌ی افزودن قبض:\n/add شماره‌ی ۱۳ رقمی قبض\n"
-			+"❗لطفا شماره را به انگلیسی تایپ کنید.\n\n"
-			+"مثال:\n/add 1234567890013")
+	if context.args:
+		return await add_validation(update, context, context.args[0])
+	return	await update.message.reply_text("لطفا شماره‌ی ۱۳ رقمی قبض را وارد کنید:", reply_markup=ForceReply(selective=True))
+
+async def add_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	#check_if_it_is_a_related_message
+	if not update.message.reply_to_message or "۱۳ رقمی قبض" not in update.message.reply_to_message.text:
 		return
-	
-	bill_id = context.args[0]
+
+	bill_id = update.message.text
+	return	await add_validation(update, context, bill_id)
+
+async def add_validation(update: Update, context: ContextTypes.DEFAULT_TYPE, bill_id):
 	chat_id = update.effective_chat.id
 
-	if not bill_id.isdigit() or len(bill_id) != 13:
-		return await update.message.reply_text("قبض اشتباه!\nقبض باید ۱۳ رقم انگلیسی باشد.\nمثال:\n/add 1234567890013")
-		
+	#validation
+	if len(bill_id) != 13 or not bill_id.isdigit():
+		return  await update.message.reply_text("قبض اشتباه!\n❗قبض باید ۱۳ رقم انگلیسی باشد.\nمثال:\n1234567890013")
+
+	#check_api_and_store_data_in_redis
 	if await sync_to_async(store_redis_report)(bill_id) != None:
-		return await update.message.reply_text("موفق به دریافت اطلاعات برای این قبض نشدم. لطفا دوباره تلاش کنید.")
-		
+		return	await update.message.reply_text("موفق به دریافت اطلاعات برای این قبض نشدم. لطفا دوباره تلاش کنید.")
+
+	#add_to_db
 	user, _ = await get_create_user(chat_id)
 	await update_user_info(user, update)
 
@@ -104,7 +111,7 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	if not await bill_exist_for_user(user, bill):
 		await add_bill_to_user(user, bill)
 
-	return await update.message.reply_text(f"قبض {bill_id} با موفقیت برای شما ثبت شد.\nمیتوانید با /check گزارش آن را دیافت کنید")
+	return	await update.message.reply_text(f"قبض {bill_id} با موفقیت برای شما ثبت شد.\nمیتوانید با /check گزارش آن را دریافت کنید")
 
 
 async def check_command(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
@@ -184,6 +191,7 @@ def main():
 	app.add_handler(CommandHandler("start", start_command))
 	app.add_handler(CommandHandler("help", help_command))
 	app.add_handler(CommandHandler("add", add_command))
+	app.add_handler(MessageHandler(filters.REPLY & filters.TEXT, add_reply))
 	app.add_handler(CommandHandler("check", check_command))
 	app.add_handler(CallbackQueryHandler(check_callback, pattern="^check"))
 	app.add_handler(CommandHandler("delete", delete_command))
