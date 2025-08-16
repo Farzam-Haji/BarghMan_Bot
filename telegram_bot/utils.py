@@ -44,12 +44,19 @@ def send_near_reports_direct() -> None:
 		if not user_bills:
 			continue
 		
-		telegram_message = []
+		today_message = ""
+		tomorrow_message = ""
 		for bill in user_bills:
-			bill_report = f"گزارش خاموشی برای {bill.bill_id}:\n\n" + get_redis_near_report(bill.bill_id)
-			telegram_message.append(bill_report)
+			(today_report, tomorrow_report) = get_redis_near_report(bill.bill_id)
+			today_message += today_report
+			tomorrow_message += tomorrow_report
 
-		send_telegram_message(user.chat_id, "\n\n".join(telegram_message))
+		if today_message != "":
+			today_message = "امروز:\n\n" + today_message
+		if tomorrow_message != "":
+			tomorrow_message = "\n\nفردا:\n\n" + tomorrow_message
+
+		send_telegram_message(user.chat_id, "\n\n".join([today_message, tomorrow_message]))
 
 
 

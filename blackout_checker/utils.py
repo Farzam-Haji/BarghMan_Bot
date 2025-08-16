@@ -54,7 +54,7 @@ def report_parser(json) -> str:
 	return "\n\n".join(parsed_reports)
 
 
-def today_tomorrow_report_parser(json) -> str:
+def today_tomorrow_report_parser(json) -> tuple:
 	data = json['data']
 	today_reports = []
 	tomorrow_report = []
@@ -83,13 +83,13 @@ def today_tomorrow_report_parser(json) -> str:
 
 	today_str = ""
 	if len(today_reports) > 0:
-		today_str = "امروز:\n" + "\n\n".join(today_reports)
+		today_str = "\n\n".join(today_reports)
 
 	tomorrow_str = ""
-	if len(today_reports) > 0:
-		today_str = "فردا:\n" + "\n\n".join(tomorrow_report)
+	if len(tomorrow_report) > 0:
+		today_str = "\n\n".join(tomorrow_report)
 
-	return "\n\n".join([today_str, tomorrow_str])
+	return (today_str, tomorrow_str)
 
 
 

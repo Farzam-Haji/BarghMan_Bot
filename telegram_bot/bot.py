@@ -94,7 +94,7 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	if not bill_id.isdigit() or len(bill_id) != 13:
 		return await update.message.reply_text("قبض اشتباه!\nقبض باید ۱۳ رقم انگلیسی باشد.\nمثال:\n/add 1234567890013")
 		
-	if not await sync_to_async(store_redis_report)(bill_id):
+	if await sync_to_async(store_redis_report)(bill_id) != None:
 		return await update.message.reply_text("موفق به دریافت اطلاعات برای این قبض نشدم. لطفا دوباره تلاش کنید.")
 		
 	user, _ = await get_create_user(chat_id)
