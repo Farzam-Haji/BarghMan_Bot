@@ -7,6 +7,7 @@ class TelegramUser(models.Model):
 	name = models.CharField(max_length=100, blank=True, null=True)
 	bills = models.ManyToManyField("billing.Bill", related_name="users", blank=True)
 	auto_update = models.BooleanField(default=True)
+	msg_counter = models.BigIntegerField(default=0)
 	created_at = models.DateTimeField(auto_now_add=True)
 
 	def __str__(self):
