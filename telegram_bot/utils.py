@@ -44,8 +44,13 @@ def send_near_reports_direct() -> None:
 			today_message += today_report
 			tomorrow_message += tomorrow_report
 
+		if today_message == "" and tomorrow_message == "":
+			send_telegram_message(user, "💡 خاموشی برای امروز و فردا تنظیم نشده است.")
+			continue
+
 		if today_message != "":
 			today_message = "امروز:\n\n" + today_message
+			
 		if tomorrow_message != "":
 			tomorrow_message = "\n\nفردا:\n\n" + tomorrow_message
 

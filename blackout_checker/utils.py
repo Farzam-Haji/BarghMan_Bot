@@ -51,7 +51,7 @@ def report_parser(json) -> str:
 		text = f"🌆  منطقه: {location}\n📅  تاریخ: {date}\n⏰  از: {start_time}  |  تا: {end_time}"
 		parsed_reports.append(text)
 
-	return "\n\n".join(parsed_reports)
+	return "\n\n".join(parsed_reports).replace("ي", "ی").replace("ك", "ک")
 
 
 def today_tomorrow_report_parser(json) -> tuple:
@@ -78,16 +78,13 @@ def today_tomorrow_report_parser(json) -> tuple:
 			text = f"🌆  منطقه: {location}\n⏰  از: {start_time}  |  تا: {end_time}"
 			tomorrow_report.append(text)
 
-	if len(today_reports) == 0 and len(tomorrow_report) == 0:
-		return "💡 خاموشی برای امروز و فردا تنظیم نشده است."
-
 	today_str = ""
 	if len(today_reports) > 0:
-		today_str = "\n\n".join(today_reports)
+		today_str = "\n\n".join(today_reports).replace("ي", "ی").replace("ك", "ک")
 
 	tomorrow_str = ""
 	if len(tomorrow_report) > 0:
-		tomorrow_str = "\n\n".join(tomorrow_report)
+		tomorrow_str = "\n\n".join(tomorrow_report).replace("ي", "ی").replace("ك", "ک")
 
 	return (today_str, tomorrow_str)
 
