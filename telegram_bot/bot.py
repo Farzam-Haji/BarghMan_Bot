@@ -59,6 +59,12 @@ def delete_bill_for_user(user: TelegramUser, bill_id: str) -> bool:
 		return False
 
 @sync_to_async
+def add_msg_counter(user: TelegramUser):
+	user.msg_counter += 1
+	user.save()
+	return
+
+@sync_to_async
 def update_user_auto_status(user: TelegramUser, status: bool):
 	user.auto_update = status
 	user.save()
@@ -147,16 +153,18 @@ async def check_callback(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 		return await query.edit_message_text(text="شما پروسه‌ی دریافت خاموشی را متوقف کردید")
 
 	await query.edit_message_text(text=f"انتخاب شما: {answer}")
+	user = await get_user(update.effective_chat.id)
 	if answer == "همه":
-		user = await get_user(update.effective_chat.id)
 		result = await sync_to_async(all_reports_list_bot)(user)
 		for bill_report in result:
 			await query.message.reply_text(bill_report)
+			await add_msg_counter(user)
 			await asyncio.sleep(0.1)
 		return
 
 	single_bill_report = await sync_to_async(get_redis_report)(answer)
-	return await query.message.reply_text(single_bill_report)
+	await query.message.reply_text(single_bill_report)
+	return await add_msg_counter(user)
 
 
 async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

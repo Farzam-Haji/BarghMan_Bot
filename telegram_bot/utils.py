@@ -4,7 +4,7 @@ import requests
 from accounts.models import TelegramUser
 
 
-def send_telegram_message(chat_id, text):
+def send_telegram_message(user: TelegramUser, text: str):
 	token = settings.TELEGRAM_BOT_TOKEN
 	url = f"https://api.telegram.org/bot{token}/sendMessage"
 	proxies = {
@@ -13,12 +13,14 @@ def send_telegram_message(chat_id, text):
     }
 
 	payload = {
-		"chat_id": chat_id,
+		"chat_id": user.chat_id,
 		"text": text,
 		"parse_mode": "HTML"
 	}
 
 	response = requests.post(url, proxies=proxies, json=payload)
+	user.msg_counter += 1
+	user.save()
 	return response.ok
 
 
@@ -30,7 +32,7 @@ def send_all_reports_direct() -> None:
 			bill_report = f"گزارش خاموشی برای {bill.bill_id}:\n\n" + get_redis_report(bill.bill_id)
 			telegram_message.append(bill_report)
 			
-		send_telegram_message(user.chat_id, "\n\n".join(telegram_message))
+		send_telegram_message(user, "\n\n".join(telegram_message))
 
 def send_near_reports_direct() -> None:
 	for user in TelegramUser.objects.filter(auto_update=True).prefetch_related("bills"):
@@ -47,7 +49,7 @@ def send_near_reports_direct() -> None:
 		if tomorrow_message != "":
 			tomorrow_message = "\n\nفردا:\n\n" + tomorrow_message
 
-		send_telegram_message(user.chat_id, "\n\n".join([today_message, tomorrow_message]))
+		send_telegram_message(user, "\n\n".join([today_message, tomorrow_message]))
 
 
 
