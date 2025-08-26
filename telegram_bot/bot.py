@@ -91,7 +91,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		+"/delete  حذف یکی از قبض‌های از پیش افزوده شده\n"
 		+"/check  دریافت گزارش خاموشی برای قبوض افزوده شده\n"
 		+"/auto  دریافت اخبار خودکار\n\n"
-		+"اخبار خودکار: اخبار خاموشی مربوط به امروز و فردا را به صورت روزانه و خودکار دریافت میکنید.")
+		+"اخبار خودکار: اخبار خاموشی مربوط به امروز و فردا را به صورت روزانه دریافت میکنید.")
 
 
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -178,7 +178,7 @@ async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	buttons=[]
 	for bill in bills:
 		buttons.append([InlineKeyboardButton(bill.bill_id, callback_data=f"delete:{bill.bill_id}")])
-	buttons.append([InlineKeyboardButton("Return", callback_data="delete:return")])
+	buttons.append([InlineKeyboardButton("بازگشت", callback_data="delete:return")])
 	keyboard = InlineKeyboardMarkup(buttons)
 
 	return await update.message.reply_text("کدام قبض را میخواهید حذف کنید؟", reply_markup=keyboard)

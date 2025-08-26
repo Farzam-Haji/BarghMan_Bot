@@ -2,6 +2,10 @@ from django.conf import settings
 from blackout_checker.redis_client import get_redis_report, get_redis_near_report
 import requests
 from accounts.models import TelegramUser
+import jdatetime
+
+def get_jalali_today():
+	return jdatetime.date.today().strftime("%Y/%m/%d")
 
 
 def send_telegram_message(user: TelegramUser, text: str):
@@ -29,9 +33,13 @@ def send_all_reports_direct() -> None:
 	for user in TelegramUser.objects.filter(auto_update=True).prefetch_related("bills"):
 		telegram_message = []
 		for bill in user.bills.all():
-			bill_report = f"گزارش خاموشی برای {bill.bill_id}:\n\n" + get_redis_report(bill.bill_id)
+			report = get_redis_report(bill.bill_id)
+			if report == "":
+				telegram_message.append(f"خاموشی برای قبض {bill.bill_id} گزارش نشده است.")
+				continue
+			bill_report = f"گزارش خاموشی برای {bill.bill_id}:\n\n" + report
 			telegram_message.append(bill_report)
-			
+
 		send_telegram_message(user, "\n\n".join(telegram_message))
 
 def send_near_reports_direct() -> None:
@@ -48,13 +56,17 @@ def send_near_reports_direct() -> None:
 			send_telegram_message(user, "💡 خاموشی برای امروز و فردا تنظیم نشده است.")
 			continue
 
-		if today_message != "":
+		if today_message == "":
+			today_message = "امروز:\n\nخاموشی برای امروز ثبت نشده است"
+		else:
 			today_message = "امروز:\n\n" + today_message
 			
-		if tomorrow_message != "":
-			tomorrow_message = "\n\nفردا:\n\n" + tomorrow_message
+		if tomorrow_message == "":
+			tomorrow_message = "فردا:\n\nخاموشی برای فردا ثبت نشده است"
+		else:
+			tomorrow_message = "فردا:\n\n" + tomorrow_message
 
-		send_telegram_message(user, "\n\n".join([today_message, tomorrow_message]))
+		send_telegram_message(user, f"اخبار خاموشی برای {get_jalali_today()}\n\n" + "\n\n".join([today_message, tomorrow_message]))
 
 
 
