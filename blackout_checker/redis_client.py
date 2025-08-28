@@ -3,6 +3,7 @@ import json
 from django.conf import settings
 from blackout_checker.utils import fetch_blackout_report, report_parser, today_tomorrow_report_parser
 from billing.models import Bill
+import time
 
 def get_redis_connection():
 	return redis.Redis(
@@ -60,5 +61,6 @@ def update_all_bill_reports() -> Exception | None:
 		err = store_redis_report(bill.bill_id)
 		if err != None:
 			return err
+		time.sleep(0.5)
 
 	delete_orphan_redis_reports()

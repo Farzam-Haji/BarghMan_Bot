@@ -1,4 +1,5 @@
 #django_setup--------------------------------------------------------------------#
+from socket import timeout
 import sys
 import os
 import django
@@ -15,6 +16,9 @@ from blackout_checker.redis_client import store_redis_report, get_redis_report
 from telegram_bot.utils import all_reports_list_bot
 import asyncio
 from asgiref.sync import sync_to_async
+from telegram.error import NetworkError, TimedOut
+import logging
+from logging.handlers import RotatingFileHandler
 
 
 #Bot_connection
@@ -233,12 +237,34 @@ async def auto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		return	await query.edit_message_text(text="اخبار خودکار غیرفعال شد.")
 
 
+log_dir = os.path.expanduser("~/logs")
+os.makedirs(log_dir, exist_ok=True)
+
+log_file = os.path.join(log_dir, "telegrambot.log")
+
+log_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
+
+logging.basicConfig(
+	format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+	level=logging.INFO,
+	handlers=[log_handler]
+)
+logger = logging.getLogger(__name__)
+
+async def error_handler(update, context):
+	error = context.error
+
+	if isinstance(error, (NetworkError, TimedOut)):
+		logger.warning("Network issue: %s", error)
+	else:
+		logger.error("Unexpected error: %s", error, exc_info=context.error)
 
 
 
 def main():
 	app = ApplicationBuilder().token(bot_token).proxy(proxy_url).get_updates_proxy(proxy_url).build()
 
+	#handlers
 	app.add_handler(CommandHandler("start", start_command))
 	app.add_handler(CommandHandler("help", help_command))
 	app.add_handler(CommandHandler("add", add_command))
@@ -250,8 +276,16 @@ def main():
 	app.add_handler(CommandHandler('auto', auto_command))
 	app.add_handler(CallbackQueryHandler(auto_callback, pattern="^auto"))
 
-	print("bot is running")
-	app.run_polling()
+	#error_handler
+	app.add_error_handler(error_handler)
+
+	logger.info("Bot is running")
+	app.run_polling(
+		drop_pending_updates=True,
+		allowed_updates=["message", "callback_query"],
+		timeout=30,
+		stop_signals=None
+	)
 
 if __name__=="__main__":
 	main()
