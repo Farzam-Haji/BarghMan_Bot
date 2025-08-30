@@ -19,12 +19,23 @@ from asgiref.sync import sync_to_async
 from telegram.error import NetworkError, TimedOut
 import logging
 from logging.handlers import RotatingFileHandler
+import httpx
+from telegram.request import HTTPXRequest
 
 
 #Bot_connection
 
 bot_token = settings.TELEGRAM_BOT_TOKEN
 proxy_url = "http://127.0.0.1:12334"
+
+bot_request = HTTPXRequest(
+    connection_pool_size=10,
+    read_timeout=10,
+    write_timeout=10,
+    connect_timeout=10,
+    pool_timeout=5,
+)
+
 
 
 
@@ -280,12 +291,17 @@ def main():
 	app.add_error_handler(error_handler)
 
 	logger.info("Bot is running")
-	app.run_polling(
-		drop_pending_updates=True,
-		allowed_updates=["message", "callback_query"],
-		timeout=30,
-		stop_signals=None
-	)
+	try:
+		app.run_polling(
+			drop_pending_updates=True,
+			allowed_updates=["message", "callback_query"],
+			timeout=10,
+			stop_signals=None
+		)
+	except httpx.ConnectError:
+		logger.error("Bot is dead. exit so service can restart")
+		sys.exit(1)
+
 
 if __name__=="__main__":
 	main()
