@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "BarghMan_Bot.settings")
 django.setup()
 #--------------------------------------------------------------------------------#
-from telegram import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
 from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 from django.conf import settings
 from accounts.models import TelegramUser
@@ -18,25 +18,13 @@ import asyncio
 from asgiref.sync import sync_to_async
 from telegram.error import NetworkError, TimedOut
 import logging
-from logging.handlers import RotatingFileHandler
 import httpx
-from telegram.request import HTTPXRequest
 
 
 #Bot_connection
 
 bot_token = settings.TELEGRAM_BOT_TOKEN
 proxy_url = "http://127.0.0.1:12334"
-
-bot_request = HTTPXRequest(
-    connection_pool_size=10,
-    read_timeout=10,
-    write_timeout=10,
-    connect_timeout=10,
-    pool_timeout=5,
-)
-
-
 
 
 #Async_ORM
@@ -248,28 +236,29 @@ async def auto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		return	await query.edit_message_text(text="اخبار خودکار غیرفعال شد.")
 
 
-log_dir = os.path.expanduser("~/logs")
-os.makedirs(log_dir, exist_ok=True)
+#Log_and_Errors
 
-log_file = os.path.join(log_dir, "telegrambot.log")
-
-log_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
-
+logger = logging.getLogger(__name__)
 logging.basicConfig(
 	format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
 	level=logging.INFO,
-	handlers=[log_handler]
 )
-logger = logging.getLogger(__name__)
+
 
 async def error_handler(update, context):
 	error = context.error
 
-	if isinstance(error, (NetworkError, TimedOut)):
-		logger.warning("Network issue: %s", error)
-	else:
-		logger.error("Unexpected error: %s", error, exc_info=context.error)
+	cause = getattr(error, "__cause__", None)
 
+	if isinstance(error, httpx.ConnectError) or isinstance(cause, httpx.ConnectError):
+		logger.error("Proxy connection failed. Exiting so systemd can restart.")
+		sys.exit(1)
+
+	elif isinstance(error, (NetworkError, httpx.RemoteProtocolError)):
+		logger.warning("Network issue: %s", error)
+	
+	else:
+		logger.error("Unexpected error: %s", error, exc_info=error)
 
 
 def main():
@@ -291,16 +280,16 @@ def main():
 	app.add_error_handler(error_handler)
 
 	logger.info("Bot is running")
-	try:
-		app.run_polling(
-			drop_pending_updates=True,
-			allowed_updates=["message", "callback_query"],
-			timeout=10,
-			stop_signals=None
-		)
-	except httpx.ConnectError:
-		logger.error("Bot is dead. exit so service can restart")
-		sys.exit(1)
+
+	app.run_polling(
+		drop_pending_updates=True,
+		allowed_updates=["message", "callback_query"],
+		timeout=10,
+		stop_signals=None,
+		close_loop=False,
+		poll_interval=5.0,
+	)
+
 
 
 if __name__=="__main__":
