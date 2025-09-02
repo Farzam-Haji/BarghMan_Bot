@@ -1,5 +1,4 @@
 #django_setup--------------------------------------------------------------------#
-from socket import timeout
 import sys
 import os
 import django
@@ -17,14 +16,47 @@ from telegram_bot.utils import all_reports_list_bot
 import asyncio
 from asgiref.sync import sync_to_async
 from telegram.error import NetworkError, TimedOut
+from telegram.request import HTTPXRequest
 import logging
 import httpx
+
+
+
+# systemd watchdog for debian\ubuntu os
+# install with: sudo apt install python3-systemd
+try:
+	from systemd import daemon
+	import threading
+	import time
+
+	def watchdog_notifier(interval:int = 10):
+		"""send signal to systemd watchdog every `interval` seconds"""
+		while True:
+			daemon.notify("WATCHDOG=1")
+			time.sleep(interval)
+    
+	WATCHDOG_ENABLED = True
+
+except ImportError:
+    WATCHDOG_ENABLED = False
+
+
 
 
 #Bot_connection
 
 bot_token = settings.TELEGRAM_BOT_TOKEN
 proxy_url = "http://127.0.0.1:12334"
+
+http_request = HTTPXRequest(
+	connection_pool_size=20,
+	pool_timeout=10.0,
+	read_timeout=60.0,
+	write_timeout=15.0,
+	connect_timeout=10.0,
+	http_version="1.1",
+	proxy=proxy_url,
+)
 
 
 #Async_ORM
@@ -262,7 +294,7 @@ async def error_handler(update, context):
 
 
 def main():
-	app = ApplicationBuilder().token(bot_token).proxy(proxy_url).get_updates_proxy(proxy_url).build()
+	app = ApplicationBuilder().token(bot_token).request(http_request).get_updates_request(http_request).build()
 
 	#handlers
 	app.add_handler(CommandHandler("start", start_command))
@@ -275,6 +307,10 @@ def main():
 	app.add_handler(CallbackQueryHandler(delete_callback, pattern="^delete"))
 	app.add_handler(CommandHandler('auto', auto_command))
 	app.add_handler(CallbackQueryHandler(auto_callback, pattern="^auto"))
+
+	#watchdog
+	if WATCHDOG_ENABLED:
+		threading.Thread(target=watchdog_notifier, daemon=True).start()
 
 	#error_handler
 	app.add_error_handler(error_handler)
@@ -293,4 +329,6 @@ def main():
 
 
 if __name__=="__main__":
+	if WATCHDOG_ENABLED:
+		daemon.notify("READY=1")
 	main()
