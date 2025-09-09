@@ -9,7 +9,7 @@ django.setup()
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
 from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 from django.conf import settings
-from accounts.models import TelegramUser
+from accounts.models import TelegramUser, UserBill
 from billing.models import Bill
 from blackout_checker.redis_client import store_redis_report, get_redis_report
 from telegram_bot.utils import all_reports_list_bot
@@ -112,37 +112,44 @@ def update_user_info(user, update: Update):
 	user.save()
 	return
 
+@sync_to_async
+def all_alias_for_user(user: TelegramUser):
+	return list(UserBill.objects.filter(user=user).select_related("bill"))
+
+@sync_to_async
+def set_new_alias(user: TelegramUser, bill_id: str, alias: str):
+	userbill = UserBill.objects.get(user=user, bill__bill_id=bill_id)
+	userbill.alias = alias
+	userbill.save()
+	return userbill
+
 
 
 #Command_Handlers
-
+#Start
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	await update.message.reply_text("به ربات برق‌من خوش آمدید!\nبرای آشنایی با طریقه‌ی عملکرد ربات از /help استفاده کنید")
 
 
+#Help
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	return await update.message.reply_text("می‌توانید توسط یکی از دستورات زیر کار مد نظر خود را از ربات بخواهید:\n\n"
 		+"/add  افزودن قبض جدید\n"
 		+"/delete  حذف یکی از قبض‌های از پیش افزوده شده\n"
 		+"/check  دریافت گزارش خاموشی برای قبوض افزوده شده\n"
+		+"/name  تغییر نام قبض\n"
 		+"/auto  دریافت اخبار خودکار\n\n"
 		+"اخبار خودکار: اخبار خاموشی مربوط به امروز و فردا را به صورت روزانه دریافت میکنید.")
 
 
+#Add
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	if context.args:
 		return await add_validation(update, context, context.args[0])
 	return	await update.message.reply_text("لطفا شماره‌ی ۱۳ رقمی قبض را وارد کنید:", reply_markup=ForceReply(selective=True))
 
 async def add_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-	#check_if_it_is_a_related_message
-	if not update.message.reply_to_message or "۱۳ رقمی قبض" not in update.message.reply_to_message.text:
-		return
-
 	bill_id = update.message.text
-	return	await add_validation(update, context, bill_id)
-
-async def add_validation(update: Update, context: ContextTypes.DEFAULT_TYPE, bill_id):
 	chat_id = update.effective_chat.id
 
 	#validation
@@ -164,15 +171,16 @@ async def add_validation(update: Update, context: ContextTypes.DEFAULT_TYPE, bil
 	return	await update.message.reply_text(f"قبض {bill_id} با موفقیت برای شما ثبت شد.\nمیتوانید با /check گزارش آن را دریافت کنید")
 
 
+#Check
 async def check_command(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 	user = await get_user(update.effective_chat.id)
-	bills = await all_bills_for_user(user)
+	bills = await all_alias_for_user(user)
 
 	if not bills:
 		return await update.message.reply_text("شما قبضی ندارید.\nابتدا با /add قبض خود را ثبت کنید")
 		
-	bottons = [[InlineKeyboardButton(bill.bill_id, callback_data=f"check:{bill.bill_id}")]for bill in bills]
-	bottons.append([InlineKeyboardButton("همه", callback_data="check:همه")])
+	bottons = [[InlineKeyboardButton(str(bill), callback_data=f"check:{bill.bill.bill_id}:{str(bill)}")]for bill in bills]
+	bottons.append([InlineKeyboardButton("همه", callback_data="check:همه:همه")])
 	bottons.append([InlineKeyboardButton("بازگشت", callback_data="check:return")])
 	keyboard = InlineKeyboardMarkup(bottons)
 
@@ -183,11 +191,13 @@ async def check_callback(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 	query = update.callback_query
 	await query.answer()
 	answer = query.data.split(":")[1]
+	alias = query.data.split(":")[2]
+	
 
 	if answer == "return":
 		return await query.edit_message_text(text="شما پروسه‌ی دریافت خاموشی را متوقف کردید")
 
-	await query.edit_message_text(text=f"انتخاب شما: {answer}")
+	await query.edit_message_text(text=f"انتخاب شما: {alias}")
 	user = await get_user(update.effective_chat.id)
 	if answer == "همه":
 		result = await sync_to_async(all_reports_list_bot)(user)
@@ -202,6 +212,7 @@ async def check_callback(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 	return await add_msg_counter(user)
 
 
+#Delete
 async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user = await get_user(update.effective_chat.id)
 	bills = await all_bills_for_user(user)
@@ -234,6 +245,8 @@ async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		return await query.edit_message_text(text="ناموفق. لطفا دوباره تلاش کنید")
 
 
+
+#Auto
 async def auto_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user = await get_user(update.effective_chat.id)
 	current = ""
@@ -268,6 +281,67 @@ async def auto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		return	await query.edit_message_text(text="اخبار خودکار غیرفعال شد.")
 
 
+
+#Name
+async def name_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	user = await get_user(update.effective_chat.id)
+	bills = await all_alias_for_user(user)
+
+	if not bills:
+		return await update.message.reply_text("شما قبضی ندارید.\nابتدا با /add قبض خود را ثبت کنید")
+		
+	bottons = [[InlineKeyboardButton(str(bill), callback_data=f"name:{bill.bill.bill_id}")]for bill in bills]
+	bottons.append([InlineKeyboardButton("بازگشت", callback_data="name:return")])
+	keyboard = InlineKeyboardMarkup(bottons)
+
+	return await update.message.reply_text("نام کدام قبض را می‌خواهید تغییر دهید؟", reply_markup=keyboard)
+
+async def name_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	query = update.callback_query
+	await query.answer()
+	answer = query.data.split(":")[1]
+
+	if answer == "return":
+		return await query.edit_message_text(text="شما پروسه‌ی تغییر نام را متوقف کردید")
+		
+	context.user_data["rename_bill_id"] = answer
+	
+	await query.edit_message_text(text=f"لطفا نام جدید برای قبض {answer} را وارد کنید.\n"
+		+"میتوانید با وارد کردن 0 نام قبض را حذف کنید")
+	return await query.message.reply_text("نام جدید:", reply_markup=ForceReply(selective=True))
+
+
+async def name_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	bill_id = context.user_data.get("rename_bill_id")
+	user = await get_user(update.effective_chat.id)
+	alias = update.message.text
+
+	if alias == "0" or alias == "۰":
+		await set_new_alias(user, bill_id, "")
+		return await update.message.reply_text(f"نام قبض {bill_id} حذف شد.")
+
+	await set_new_alias(user, bill_id, alias)
+
+	return await update.message.reply_text(f"نام قبض {bill_id} با موفقیت به {alias} تغییر یافت")
+
+
+
+
+#Reply text
+async def reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.reply_to_message:
+        return
+
+    text = update.message.reply_to_message.text
+
+    if "۱۳ رقمی قبض" in text:
+        return await add_reply(update, context)
+
+    if "نام جدید:" in text:
+        return await name_reply(update, context)
+
+
+
 #Log_and_Errors
 
 logger = logging.getLogger(__name__)
@@ -300,23 +374,25 @@ def main():
 	app.add_handler(CommandHandler("start", start_command))
 	app.add_handler(CommandHandler("help", help_command))
 	app.add_handler(CommandHandler("add", add_command))
-	app.add_handler(MessageHandler(filters.REPLY & filters.TEXT, add_reply))
 	app.add_handler(CommandHandler("check", check_command))
 	app.add_handler(CallbackQueryHandler(check_callback, pattern="^check"))
 	app.add_handler(CommandHandler("delete", delete_command))
 	app.add_handler(CallbackQueryHandler(delete_callback, pattern="^delete"))
 	app.add_handler(CommandHandler('auto', auto_command))
 	app.add_handler(CallbackQueryHandler(auto_callback, pattern="^auto"))
+	app.add_handler(CommandHandler("name", name_command))
+	app.add_handler(CallbackQueryHandler(name_callback, pattern="^name"))
+	#handler for reply messages
+	app.add_handler(MessageHandler(filters.REPLY & filters.TEXT, reply_handler))
+
+	#error_handler
+	app.add_error_handler(error_handler)
 
 	#watchdog
 	if WATCHDOG_ENABLED:
 		threading.Thread(target=watchdog_notifier, daemon=True).start()
 
-	#error_handler
-	app.add_error_handler(error_handler)
-
 	logger.info("Bot is running")
-
 	app.run_polling(
 		drop_pending_updates=True,
 		allowed_updates=["message", "callback_query"],
