@@ -5,7 +5,8 @@ from accounts.models import TelegramUser
 import jdatetime
 
 def get_jalali_today():
-	return jdatetime.date.today().strftime("%Y/%m/%d")
+	today = jdatetime.date.today()
+	return f"({today.j_weekdays_fa[today.weekday()]} {today.day})"
 
 
 def send_telegram_message(user: TelegramUser, text: str):
@@ -53,7 +54,7 @@ def send_near_reports_direct() -> None:
 			tomorrow_message += tomorrow_report
 
 		if today_message == "" and tomorrow_message == "":
-			send_telegram_message(user, "💡 خاموشی برای امروز و فردا تنظیم نشده است.")
+			send_telegram_message(user, f"اخبار خاموشی برای {get_jalali_today()}\n\n" + "💡 خاموشی برای امروز و فردا تنظیم نشده است.")
 			continue
 
 		if today_message == "":
