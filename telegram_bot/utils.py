@@ -13,8 +13,8 @@ def send_telegram_message(user: TelegramUser, text: str):
 	token = settings.TELEGRAM_BOT_TOKEN
 	url = f"https://api.telegram.org/bot{token}/sendMessage"
 	proxies = {
-        "http": "http://127.0.0.1:12334",
-        "https": "http://127.0.0.1:12334"
+        "http": settings.PROXY_URL,
+        "https": settings.PROXY_URL
     }
 
 	payload = {
@@ -30,7 +30,7 @@ def send_telegram_message(user: TelegramUser, text: str):
 
 
 # Manual Telegram Message Through Bot
-def send_all_reports_direct() -> None:
+def send_full_reports_alluser() -> None:
 	for user in TelegramUser.objects.filter(auto_update=True).prefetch_related("bills"):
 		telegram_message = []
 		for bill in user.bills.all():
@@ -43,7 +43,7 @@ def send_all_reports_direct() -> None:
 
 		send_telegram_message(user, "\n\n".join(telegram_message))
 
-def send_near_reports_direct() -> None:
+def send_near_reports_alluser() -> None:
 	for user in TelegramUser.objects.filter(auto_update=True).prefetch_related("bills"):
 		today_message = ""
 		tomorrow_message = ""
@@ -69,22 +69,34 @@ def send_near_reports_direct() -> None:
 
 		send_telegram_message(user, f"اخبار خاموشی برای {get_jalali_today()}\n\n" + "\n\n".join([today_message, tomorrow_message]))
 
+def custom_msg_to_alluser(text: str) -> list | None:
+	users = TelegramUser.objects.filter(chat_id__isnull=False)
+	errors = []
+	for user in users:
+		try:
+			send_telegram_message(user, text)
+		except Exception as e:
+			errors.append((str(user), str(e)))
+
+	if len(errors) == 0:
+		return None
+	return errors
 
 
-# Telegram Bot
-def all_reports_list_bot(user: TelegramUser) -> list:
-	user_bills = user.bills.all()
+# Telegram Bot send to a user all their bill reports
+# def all_reports_list_bot(user: TelegramUser) -> list:
+# 	user_bills = user.bills.all()
 
-	result = []
+# 	result = []
 	
-	if not user_bills:
-		result.append("شما قبضی ثبت نکرده‌اید")
-		return result
+# 	if not user_bills:
+# 		result.append("شما قبضی ثبت نکرده‌اید")
+# 		return result
 
-	for bill in user_bills:
-		bill_report = f"\nگزارش خاموشی برای {bill.bill_id}:\n\n" + get_redis_report(bill.bill_id)
-		result.append(bill_report)
+# 	for bill in user_bills:
+# 		bill_report = f"\nگزارش خاموشی برای {bill.bill_id}:\n\n" + get_redis_report(bill.bill_id)
+# 		result.append(bill_report)
 
-	return result
+# 	return result
 
 
