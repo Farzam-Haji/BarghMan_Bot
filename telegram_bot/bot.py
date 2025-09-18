@@ -12,7 +12,7 @@ from django.conf import settings
 from accounts.models import TelegramUser, UserBill
 from billing.models import Bill
 from blackout_checker.redis_client import store_redis_report, get_redis_report
-from telegram_bot.utils import all_reports_list_bot
+# from telegram_bot.utils import all_reports_list_bot
 import asyncio
 from asgiref.sync import sync_to_async
 from telegram.error import NetworkError, TimedOut
@@ -46,7 +46,7 @@ except ImportError:
 #Bot_connection
 
 bot_token = settings.TELEGRAM_BOT_TOKEN
-proxy_url = "http://127.0.0.1:12334"
+proxy_url = settings.PROXY_URL
 
 http_request = HTTPXRequest(
 	connection_pool_size=20,
@@ -122,6 +122,26 @@ def set_new_alias(user: TelegramUser, bill_id: str, alias: str):
 	userbill.alias = alias
 	userbill.save()
 	return userbill
+
+# util function for send all reports to a user
+def all_reports_list_bot(user: TelegramUser) -> list:
+	user_bills = user.bills.all()
+
+	result = []
+	
+	if not user_bills:
+		result.append("شما قبضی ثبت نکرده‌اید")
+		return result
+
+	for bill in user_bills:
+		report = get_redis_report(bill.bill_id)
+		if report == "":
+			bill_report = f"\nگزارش خاموشی برای {bill.bill_id}:\n\n" + "خاموشی برای این قبض یافت نشد"
+		else:
+			bill_report = f"\nگزارش خاموشی برای {bill.bill_id}:\n\n" + report
+		result.append(bill_report)
+
+	return result
 
 
 
@@ -208,6 +228,9 @@ async def check_callback(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 		return
 
 	single_bill_report = await sync_to_async(get_redis_report)(answer)
+	if single_bill_report == "":
+		await query.message.reply_text("خاموشی برای این قبض یافت نشد.")
+		return await add_msg_counter(user)
 	await query.message.reply_text(single_bill_report)
 	return await add_msg_counter(user)
 
