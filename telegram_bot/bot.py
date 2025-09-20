@@ -63,7 +63,7 @@ http_request = HTTPXRequest(
 
 @sync_to_async
 def get_user(chat_id):
-	return TelegramUser.objects.get(chat_id=chat_id)
+	return TelegramUser.objects.filter(chat_id=chat_id).first()
 
 @sync_to_async
 def get_create_user(chat_id):
@@ -136,7 +136,7 @@ def all_reports_list_bot(user: TelegramUser) -> list:
 	for bill in user_bills:
 		report = get_redis_report(bill.bill_id)
 		if report == "":
-			bill_report = f"\nگزارش خاموشی برای {bill.bill_id}:\n\n" + "خاموشی برای این قبض یافت نشد"
+			bill_report = f"\nگزارش خاموشی برای {bill.bill_id}:\n\n" + "خاموشی برای این قبض ثبت نشده."
 		else:
 			bill_report = f"\nگزارش خاموشی برای {bill.bill_id}:\n\n" + report
 		result.append(bill_report)
@@ -194,6 +194,8 @@ async def add_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #Check
 async def check_command(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 	user = await get_user(update.effective_chat.id)
+	if not user:
+		return await update.message.reply_text("ابتدا قبض اضافه کنید.")
 	bills = await all_alias_for_user(user)
 
 	if not bills:
@@ -229,7 +231,7 @@ async def check_callback(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 
 	single_bill_report = await sync_to_async(get_redis_report)(answer)
 	if single_bill_report == "":
-		await query.message.reply_text("خاموشی برای این قبض یافت نشد.")
+		await query.message.reply_text("خاموشی برای این قبض ثبت نشده.")
 		return await add_msg_counter(user)
 	await query.message.reply_text(single_bill_report)
 	return await add_msg_counter(user)
@@ -238,6 +240,8 @@ async def check_callback(update: Update, conetex: ContextTypes.DEFAULT_TYPE):
 #Delete
 async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user = await get_user(update.effective_chat.id)
+	if not user:
+		return await update.message.reply_text("ابتدا قبض اضافه کنید.")
 	bills = await all_bills_for_user(user)
 
 	if not bills:
@@ -272,6 +276,8 @@ async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #Auto
 async def auto_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user = await get_user(update.effective_chat.id)
+	if not user:
+		return await update.message.reply_text("ابتدا قبض اضافه کنید.")
 	current = ""
 	if user.auto_update:
 		current = "فعال"
@@ -308,6 +314,8 @@ async def auto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #Name
 async def name_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user = await get_user(update.effective_chat.id)
+	if not user:
+		return await update.message.reply_text("ابتدا قبض اضافه کنید.")
 	bills = await all_alias_for_user(user)
 
 	if not bills:
