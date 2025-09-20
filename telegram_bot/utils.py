@@ -81,22 +81,3 @@ def custom_msg_to_alluser(text: str) -> list | None:
 	if len(errors) == 0:
 		return None
 	return errors
-
-
-# Telegram Bot send to a user all their bill reports
-# def all_reports_list_bot(user: TelegramUser) -> list:
-# 	user_bills = user.bills.all()
-
-# 	result = []
-	
-# 	if not user_bills:
-# 		result.append("شما قبضی ثبت نکرده‌اید")
-# 		return result
-
-# 	for bill in user_bills:
-# 		bill_report = f"\nگزارش خاموشی برای {bill.bill_id}:\n\n" + get_redis_report(bill.bill_id)
-# 		result.append(bill_report)
-
-# 	return result
-
-

@@ -34,12 +34,6 @@ echo "[*] Installing python dependencies..."
 #=============================================
 
 
-#==============DJANGO-MIGRATION===============
-echo "[*] Running Django migrations..."
-"$PROJECT_DIR/venv/bin/python" manage.py migrate --noinput
-#=============================================
-
-
 #==================ENV FILE===================
 ENV_FILE="$PROJECT_DIR/.env"
 if [[ ! -f "$ENV_FILE" ]]; then	
@@ -63,6 +57,12 @@ if [[ ! -d "/var/log/$SERVICE_NAME" ]]; then
 	sudo mkdir -p /var/log/$SERVICE_NAME
 	sudo chown $USER:$USER /var/log/$SERVICE_NAME
 fi
+#=============================================
+
+
+#==============DJANGO-MIGRATION===============
+echo "[*] Running Django migrations..."
+"$PROJECT_DIR/venv/bin/python" manage.py migrate --noinput
 #=============================================
 
 
